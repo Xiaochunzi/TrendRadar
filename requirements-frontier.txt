@@ -1,0 +1,8 @@
+# Minimal frontier runtime. The upstream full requirements remain in pyproject.toml.
+requests==2.33.0
+PyYAML==6.0.3
+feedparser==6.0.12
+pytz==2026.1
+litellm==1.82.6
+json-repair==0.58.6
+tenacity==8.5.0

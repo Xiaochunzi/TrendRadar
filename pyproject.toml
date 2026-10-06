@@ -18,6 +18,7 @@ dependencies = [
 
 [project.scripts]
 trendradar = "trendradar.__main__:main"
+trendradar-frontier = "trendradar.frontier.__main__:main"
 trendradar-mcp = "mcp_server.server:run_server"
 
 [dependency-groups]
