@@ -1,0 +1,88 @@
+name: AI Frontier Radar
+
+on:
+  workflow_dispatch:
+    inputs:
+      push:
+        description: '发送到 Bark（默认只生成报告）'
+        type: boolean
+        default: false
+      collect_only:
+        description: '只验证真实采集，不调用 AI'
+        type: boolean
+        default: false
+  schedule:
+    # UTC 00:07 = Asia/Shanghai 08:07. Scheduled jobs can be delayed by GitHub.
+    - cron: '7 0 * * *'
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: ai-frontier-${{ github.repository }}
+  cancel-in-progress: false
+
+jobs:
+  digest:
+    # Nothing runs on a schedule until explicitly enabled as a repository variable.
+    if: github.event_name == 'workflow_dispatch' || vars.FRONTIER_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: requirements-frontier.txt
+      - run: pip install -r requirements-frontier.txt
+      - name: Verify frontier logic
+        run: python -m unittest discover -s tests/frontier -v
+      - name: Restore latest delivery ledger
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          mkdir -p output/frontier
+          ARTIFACT_ID=$(gh api "repos/$GH_REPO/actions/artifacts?name=frontier-state&per_page=30" --jq '.artifacts | map(select(.expired == false)) | sort_by(.created_at) | reverse | .[0].id // empty')
+          if [ -n "$ARTIFACT_ID" ]; then
+            gh api "repos/$GH_REPO/actions/artifacts/$ARTIFACT_ID/zip" > /tmp/frontier-state.zip
+            unzip -o /tmp/frontier-state.zip -d output/frontier
+          else
+            echo 'No previous ledger exists; starting a new delivery history.'
+          fi
+      - name: Collect, evaluate and optionally push
+        env:
+          AI_API_KEY: ${{ secrets.AI_API_KEY }}
+          AI_MODEL: ${{ vars.AI_MODEL }}
+          AI_API_BASE: ${{ vars.AI_API_BASE }}
+          BARK_URL: ${{ secrets.BARK_URL }}
+          PUSH: ${{ github.event_name == 'schedule' || inputs.push }}
+          COLLECT_ONLY: ${{ inputs.collect_only }}
+        run: |
+          ARGS=()
+          if [ "$COLLECT_ONLY" = 'true' ]; then
+            ARGS+=(--collect-only)
+          elif [ "$PUSH" = 'true' ]; then
+            ARGS+=(--push)
+          fi
+          python -m trendradar.frontier "${ARGS[@]}"
+      - name: Save receipts even after a partial push failure
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: frontier-state
+          path: output/frontier/state.sqlite3
+          if-no-files-found: ignore
+          retention-days: 90
+      - name: Save readable report and source coverage
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: frontier-report
+          path: |
+            output/frontier/latest.*
+            output/frontier/candidates.json
+          if-no-files-found: ignore
+          retention-days: 14
