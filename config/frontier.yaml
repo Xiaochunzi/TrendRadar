@@ -1,0 +1,47 @@
+# Standalone AI Frontier profile; run: python -m trendradar.frontier
+# All credentials are environment variables, never put keys in this file.
+timezone: Asia/Shanghai
+max_age_days: 7
+max_candidates: 120
+batch_size: 20
+max_signals: 3
+max_watch: 3
+max_per_topic: 2
+min_evidence: 0.75
+min_significance: 0.80
+min_trajectory: 0.70
+min_novelty: 0.60
+min_confidence: 0.75
+retention_days: 90
+fetch_timeout: 25
+prompt_file: config/frontier_prompt.txt
+state_path: output/frontier/state.sqlite3
+output_dir: output/frontier
+ai:
+  model: deepseek/deepseek-chat
+  timeout: 120
+  max_tokens: 7000
+sources:
+  - {id: openai, name: OpenAI, url: 'https://openai.com/news/rss.xml', kind: primary, max_items: 30}
+  - {id: deepmind, name: Google DeepMind, url: 'https://deepmind.google/blog/rss.xml', kind: primary, max_items: 30}
+  - {id: metr, name: METR, url: 'https://metr.org/feed.xml', kind: primary, max_items: 30}
+  - {id: arxiv-ai, name: arXiv cs.AI, url: 'https://rss.arxiv.org/rss/cs.AI', kind: primary, max_items: 100}
+  - {id: arxiv-lg, name: arXiv cs.LG, url: 'https://rss.arxiv.org/rss/cs.LG', kind: primary, max_items: 100}
+  - {id: interconnects, name: Interconnects, url: 'https://www.interconnects.ai/feed', kind: expert, max_items: 15}
+  - {id: import-ai, name: Import AI, url: 'https://jack-clark.net/feed/', kind: expert, max_items: 15}
+  - {id: latent-space, name: Latent Space, url: 'https://www.latent.space/feed', kind: expert, max_items: 15}
+  - {id: simon, name: Simon Willison, url: 'https://simonwillison.net/atom/everything/', kind: expert, max_items: 30}
+  - id: anthropic
+    name: Anthropic Research
+    type: page-list
+    url: https://www.anthropic.com/research
+    path_pattern: '/(research|news|institute)/(?!team/)[^/?]+'
+    kind: primary
+    max_items: 10
+  - id: epoch
+    name: Epoch AI
+    type: page-list
+    url: https://epoch.ai/latest
+    path_pattern: '/(publications|data-insights|gradient-updates)/[^/?]+'
+    kind: primary
+    max_items: 10
